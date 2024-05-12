@@ -1,5 +1,5 @@
 import type { PlasmoCSConfig } from "plasmo"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import cssText from 'data-text:~content.css';
 import { CLEAR_ICON, ICON_WEB_ITEM, LineSpinnerIcon } from './icons'
@@ -25,6 +25,7 @@ export default function InitContent() {
 	const [displayData, setDisplayData] = useState([])
 	const [tip, setTip] = useState('default')
 	const [searchKey, setSearchKey] = useState('')
+	const  ref = useRef(false)
 	useEffect( () => {
 		if (open) {
 			setTip('loading');
@@ -62,7 +63,10 @@ export default function InitContent() {
 
 	const handleClear = async () => {
 		setTip('loading')
+		if (ref.current) return
+		ref.current = true
 		await clearBookMarks()
+		ref.current = false
 		setTip('default')
 	}
 

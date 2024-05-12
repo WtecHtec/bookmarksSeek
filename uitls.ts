@@ -91,7 +91,7 @@ function getBookmarkPageStatus(id, url) {
 	})
 }
 
-function getPageInfoStatus(id, url) {
+function getPageInfoStatus(id, url): Promise<[any, any]> {
 	return new Promise((resolve) => {
 		fetch(url, {
 			method: "HEAD",

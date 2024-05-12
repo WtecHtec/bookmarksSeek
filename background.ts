@@ -2,6 +2,11 @@ import { Storage } from "@plasmohq/storage"
 import { getArryByTree, getBookmarkPageStatus, getPageInfoStatus } from "~uitls";
 
 const MAX_TIME = 7 * 24 * 60 * 60 * 1000
+
+const trashFolder = {
+  parentId: "1",
+  title: "Trash",
+}
 const storage = new Storage({
 	area: 'local',
 });
@@ -53,27 +58,52 @@ async function  getPageStatus(request, sendResponse) {
 	sendResponse({ statue: true, data: glpages || res })
 }
 
+const moveToTrash = (bookmarkId: string, trashId: string) => {
+  chrome.bookmarks.move(bookmarkId, { parentId: trashId })
+}
+
 async function clearBookMarks(sendResponse) {
-	const datas = await chrome.bookmarks.getTree()
-	const [result, ] = getArryByTree(datas)
-	const res = []
-	if (Array.isArray(result)) {
-		const promises = result.map(({ id, url }) => getPageInfoStatus(id, url) )
-		await Promise.all(promises).then(async (data) => {
-			if (Array.isArray(data)) {
-				for(let i = 0; i < data.length; i++) { 
-					const item = data[i] as any;
-					const [, obj] = item
-					const { isDeadBookmark, id } = obj;
-					if (isDeadBookmark) {
-						res.push(item)
-						await chrome.bookmarks.remove(id)
+
+	chrome.bookmarks.search({ title: trashFolder.title }, async (trashFolders) => {
+    const trashFolderExists = trashFolders.length > 0
+    if (trashFolderExists) {
+      const trash = trashFolders[0]
+      await checkBookmarkStatus(trash)
+			sendResponse({status: true})
+    } else {
+      chrome.bookmarks.create(
+        trashFolder,
+        async (trash) => {
+					await checkBookmarkStatus(trash);
+					sendResponse({status: true});
+				} 
+      )
+    }
+		
+  })
+
+	const checkBookmarkStatus = async (trash: chrome.bookmarks.BookmarkTreeNode) => {
+		const bookMarks = await chrome.bookmarks.getTree();
+		if (Array.isArray(bookMarks)) {
+			console.log('bookMarks---',bookMarks);
+			let queues = [...bookMarks];
+				while(queues.length > 0) {
+					const item = queues.shift();
+					if (item.title === 'title') continue;
+					if (item.children) {
+						queues = [...item.children, ...queues];
+					}
+					if (item.id && item.url) {
+						const [err, res ] =	await getPageInfoStatus(item.id, item.url);
+						if (!err && res && res.isDeadBookmark) {
+							await moveToTrash(item.id, trash.id);
 					}
 				}
 			}
-		})
-	}
-	sendResponse({ statue: true, data: res })
+			console.log('bookMarks--- finished',);
+		}
+	};
+
 }
 
 
